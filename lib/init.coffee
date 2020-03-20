@@ -35,6 +35,7 @@ module.exports =
     @subscriptions.dispose()
 
   provideLinter: ->
+    name: "Checkstyle"
     grammarScopes: ['source.java']
     scope: 'project'
     lintOnFly: false       # Only lint on save
@@ -61,7 +62,7 @@ module.exports =
 
   parse: (checkstyleOutput, textEditor) ->
     # Regex to match the error/warning line
-    regex = /^(.*\.java):(\d+):([\w \-]+): (warning:|)(.+)/
+    regex = /\[[A-Z]+\] (.*\.java):(\d+):(\d?):? (.*)\[(\w+)\]/
 
     # Split into lines
     lines = checkstyleOutput.split /\r?\n/
@@ -69,20 +70,20 @@ module.exports =
     for line in lines
 
       if line.match regex
-        [file, lineNum, colNum, typeStr, mess] = line.match(regex)[1..5]
+        [file, lineNum, colNum, mess, typeStr] = line.match(regex)[1..5]
 
-        console.log(typeStr)
+        if colNum is ""
+          colNum = 1
+        else
+          colNum = parseInt colNum
 
-        # checkstyle warning is error; info is warning
-        type = "warning"
-        if line.indexOf("warning") isnt -1
-          type = "error"
-
+        pos = [[lineNum - 1, colNum - 1], [lineNum - 1, colNum]]
         messages.push
-          type: type       # Should be "error" or "warning"
-          text: mess       # The error message
-          filePath: file   # Full path to file
-          range: [[lineNum - 1, 0], [lineNum - 1, 0]]
+          type: "warning"
+          text: typeStr   # The classname of the error
+          html: mess      # The error message
+          filePath: file
+          range: pos
     return messages
 
   getProjectRootDir: ->
